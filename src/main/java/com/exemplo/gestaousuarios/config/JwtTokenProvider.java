@@ -5,38 +5,31 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
-    private final Key key = Keys.hmacShaKeyFor("ChaveSecretaSuperSeguraParaGarantirAIntegridadeDoJWT123456!".getBytes());
+    private final Key key;
     private final long validezEmMilisegundos = 3600000; // 1 hora
+
+    public JwtTokenProvider(@Value("${jwt.secret}") String secret) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String gerarToken(Usuario usuario) {
         Date agora = new Date();
         Date validade = new Date(agora.getTime() + validezEmMilisegundos);
-
-        return Jwts.builder()
-                .setSubject(usuario.getId())
-                .claim("nome", usuario.getNome())
-                .claim("email", usuario.getEmail())
-                .claim("perfil", usuario.getPerfil().name())
-                .setIssuedAt(agora)
-                .setExpiration(validade)
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+        return Jwts.builder().setSubject(usuario.getId()).claim("nome", usuario.getNome()).claim("email", usuario.getEmail()).claim("perfil", usuario.getPerfil().name()).setIssuedAt(agora).setExpiration(validade).signWith(key, SignatureAlgorithm.HS256).compact();
     }
 
     public boolean validarToken(String token) {
-        try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        try { Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token); return true; }
+        catch (Exception e) { return false; }
     }
 
     public Claims getClaims(String token) {
